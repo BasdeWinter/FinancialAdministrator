@@ -1,0 +1,17 @@
+C:\Users\badew\source\repos\FinancialAdministrator\FinancialAdministrator\bin\Release\net8.0-windows\publish\FinancialAdministrator.exe
+C:\Users\badew\source\repos\FinancialAdministrator\FinancialAdministrator\bin\Release\net8.0-windows\publish\FinancialAdministrator.dll
+C:\Users\badew\source\repos\FinancialAdministrator\FinancialAdministrator\bin\Release\net8.0-windows\publish\FinancialAdministrator.deps.json
+C:\Users\badew\source\repos\FinancialAdministrator\FinancialAdministrator\bin\Release\net8.0-windows\publish\FinancialAdministrator.runtimeconfig.json
+C:\Users\badew\source\repos\FinancialAdministrator\FinancialAdministrator\bin\Release\net8.0-windows\publish\FinancialAdministrator.pdb
+C:\Users\badew\source\repos\FinancialAdministrator\FinancialAdministrator\bin\Release\net8.0-windows\publish\EPPlus.dll
+C:\Users\badew\source\repos\FinancialAdministrator\FinancialAdministrator\bin\Release\net8.0-windows\publish\EPPlus.Interfaces.dll
+C:\Users\badew\source\repos\FinancialAdministrator\FinancialAdministrator\bin\Release\net8.0-windows\publish\EPPlus.System.Drawing.dll
+C:\Users\badew\source\repos\FinancialAdministrator\FinancialAdministrator\bin\Release\net8.0-windows\publish\Microsoft.Extensions.Configuration.dll
+C:\Users\badew\source\repos\FinancialAdministrator\FinancialAdministrator\bin\Release\net8.0-windows\publish\Microsoft.Extensions.Configuration.Abstractions.dll
+C:\Users\badew\source\repos\FinancialAdministrator\FinancialAdministrator\bin\Release\net8.0-windows\publish\Microsoft.Extensions.Configuration.FileExtensions.dll
+C:\Users\badew\source\repos\FinancialAdministrator\FinancialAdministrator\bin\Release\net8.0-windows\publish\Microsoft.Extensions.Configuration.Json.dll
+C:\Users\badew\source\repos\FinancialAdministrator\FinancialAdministrator\bin\Release\net8.0-windows\publish\Microsoft.Extensions.FileProviders.Abstractions.dll
+C:\Users\badew\source\repos\FinancialAdministrator\FinancialAdministrator\bin\Release\net8.0-windows\publish\Microsoft.Extensions.FileProviders.Physical.dll
+C:\Users\badew\source\repos\FinancialAdministrator\FinancialAdministrator\bin\Release\net8.0-windows\publish\Microsoft.Extensions.FileSystemGlobbing.dll
+C:\Users\badew\source\repos\FinancialAdministrator\FinancialAdministrator\bin\Release\net8.0-windows\publish\Microsoft.Extensions.Primitives.dll
+C:\Users\badew\source\repos\FinancialAdministrator\FinancialAdministrator\bin\Release\net8.0-windows\publish\Microsoft.IO.RecyclableMemoryStream.dll
