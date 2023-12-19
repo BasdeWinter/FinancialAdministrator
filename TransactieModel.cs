@@ -30,35 +30,39 @@ namespace FinancialAdministrator
             Bedrag = Convert.ToDouble(bedrag);
             Omschrijving = omschrijving;
             Detail = detail;
-            Categorie = "Geen";
+            Categorie = "None";
 
             if (giften.Any(omschrijving.ToLower().Contains) && Bedrag < 0)
             {
-                Categorie = "Giften";
+                Categorie = "Donations";
             }
             if (auto.Any(omschrijving.ToLower().Contains) && Bedrag < 0)
             {
-                Categorie = "Auto";
+                Categorie = "Car";
             }
             if (ziekte.Any(omschrijving.ToLower().Contains) && Bedrag < 0)
             {
-                Categorie = "Ziekte";
+                Categorie = "Sickness";
             }
             if (boodschappen.Any(omschrijving.ToLower().Contains) && Bedrag < 0)
             {
-                Categorie = "Boodschappen";
+                Categorie = "Shoppings";
             }
             if (verzekeringen.Any(omschrijving.ToLower().Contains) && Bedrag < 0)
             {
-                Categorie = "Verzekeringen";
+                Categorie = "Insurance";
             }
             if (belastingvermindering.Any(omschrijving.ToLower().Contains) && Bedrag < 0)
             {
-                Categorie = "Belastingvermindering";
+                Categorie = "TaxReduction";
+            }
+            if (tegenrekening == "NL26ASNB8888888888") // change to valid savings account
+            {
+                Categorie = "ToSavingsAccount";
             }
             if (Bedrag > 0)
             {
-                Categorie = "Storting";
+                Categorie = "Deposit";
             }
         }
     }

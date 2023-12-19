@@ -2,21 +2,15 @@
 
 namespace FinancialAdministrator
 {
-    internal class CsvReader
+    internal class CsvReader(string[] readfile)
     {
-        string[] readFile { get; set; }
-        public CsvReader(string[] readfile)
+        public async Task<List<TransactieModel>> parseFileAsync()
         {
-            readFile = readfile;
-        }
-
-        public List<TransactieModel> parseFile()
-        {
-            List<TransactieModel> result = new List<TransactieModel>();
-            for (int i = 1; i < readFile.Length; i++)
+            List<TransactieModel> result = new();
+            for (int i = 1; i < readfile.Length; i++)
             {
-                string[] rowData = readFile[i].Split(';');
-                result.Add(new TransactieModel(rowData[4], rowData[6], rowData[2], rowData[8], rowData[9]));
+                string[] rowData = readfile[i].Split(';');
+                await Task.Run(() => result.Add(new TransactieModel(rowData[4], rowData[6], rowData[2], rowData[8], rowData[9])));
             }
             return result;
         }

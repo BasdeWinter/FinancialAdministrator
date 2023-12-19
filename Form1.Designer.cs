@@ -1,6 +1,6 @@
 ﻿namespace FinancialAdministrator
 {
-    partial class financialAdministrator
+    partial class FinancialAdministrator
     {
         /// <summary>
         ///  Required designer variable.
@@ -52,7 +52,7 @@
             readFileButton.TabIndex = 1;
             readFileButton.Text = "Open CSV bestand";
             readFileButton.UseVisualStyleBackColor = true;
-            readFileButton.Click += readFileButton_Click;
+            readFileButton.Click += ReadFileButton_Click;
             // 
             // openFileDialog1
             // 
@@ -66,7 +66,7 @@
             generateXcelButton.TabIndex = 2;
             generateXcelButton.Text = "Genereer Excel bestand";
             generateXcelButton.UseVisualStyleBackColor = true;
-            generateXcelButton.Click += generateXcelButton_Click;
+            generateXcelButton.Click += GenerateXcelButton_Click;
             // 
             // progressBar1
             // 

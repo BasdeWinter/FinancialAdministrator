@@ -1,146 +1,175 @@
-﻿using Microsoft.Office.Interop.Excel;
-using Microsoft.VisualBasic;
-using OfficeOpenXml;
-using OfficeOpenXml.FormulaParsing.Excel.Functions;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Net.NetworkInformation;
-using System.Security.Principal;
-using System.Text;
-using System.Threading.Tasks;
+﻿using OfficeOpenXml;
 using OfficeOpenXml.Style;
-using System.IO.Packaging;
-using System.Runtime.CompilerServices;
 using System.Collections;
+using System.Diagnostics;
+using System.Drawing.Text;
+using System.Globalization;
+using System.Linq.Expressions;
+using System.Reflection;
+using System.Resources;
+using System.Windows.Forms.Design;
 
 namespace FinancialAdministrator
 {
     internal class ExcelWriter
     {
-        public string fileName { get; set; }
+        public FileInfo File { get; set; }
 
-        public List<TransactieModel> data { get; set; }
+        public List<TransactieModel> Data { get; set; }
 
-        public int administrationYear { get; set; }
+        public int AdministrationYear { get; set; }
 
-        public Hashtable numberOfRowsList = new Hashtable();
+        public Hashtable NumberOfRowsList = [];
 
-        ProgressBar progressBar1;
+        readonly ProgressBar progressBar1;
 
-        public ExcelWriter(string filename, List<TransactieModel> result, int administrationyear, ProgressBar progressBar1)
+        readonly RichTextBox FilePreview;
+        ResourceManager ResourceManager { get; set; }
+
+        readonly string[,]? Months;
+        
+
+        public ExcelWriter(FileInfo file, List<TransactieModel> result, int administrationYear, ProgressBar progressBar1, RichTextBox filePreview)
         {
-            fileName = filename;
-            data = result;
-            administrationYear = administrationyear;
+            File = file;
+            Data = result;
+            AdministrationYear = administrationYear;
+
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
             this.progressBar1 = progressBar1;
-        }
+            FilePreview = filePreview;
 
-        public async Task writeFile()
-        {
-            await saveExcelFile(data, fileName);
-        }
+            ResourceManager = new ResourceManager("FinancialAdministratorLight.Resources.Strings", Assembly.GetExecutingAssembly());
+            Thread.CurrentThread.CurrentUICulture = CultureInfo.CreateSpecificCulture("nl-BE");
+            Months = new string[,] {
+                                    { "January", "31" },
+                                    { "February", (AdministrationYear % 4 == 0) ? "29" : "28" },
+                                    { "March", "31" },
+                                    { "April", "30" },
+                                    { "May", "31" },
+                                    { "June", "30" },
+                                    { "July", "31" },
+                                    { "August", "31" },
+                                    { "September", "30" },
+                                    { "October", "31" },
+                                    { "November", "30" },
+                                    { "December", "31" }
+                                    };            
+        }   
 
-        public async Task saveExcelFile(List<TransactieModel> data, string fileName)
+        public async Task WriteFileAsync()
         {
-            deleteIfExists(fileName);
-            
+            DeleteIfExists();
+            string fileName = File.FullName;
+
+            if (File.Extension != ".xlsx")
+            {
+                fileName += ".xlsx";
+            }
+
             using (var package = new ExcelPackage(fileName))
             {
-                await createMonthSheet("Januari", 1, 31, package);
-                if (administrationYear % 4 == 0)
-                {
-                    await createMonthSheet("Februari", 2, 29, package);
-                }
-                else
-                {
-                    await createMonthSheet("Februari", 2, 28, package);
-                }
                 progressBar1.Visible = true;
-                await createMonthSheet("Maart", 3, 31, package);
-                progressBar1.Value = 10;
-                await createMonthSheet("April", 4, 30, package);
-                await createMonthSheet("Mei", 5, 31, package);
-                await createMonthSheet("Juni", 6, 30, package);
-                await createMonthSheet("Juli", 7, 31, package);
-                await createMonthSheet("Augustus", 8, 31, package);
-                progressBar1.Value = 50;
-                await createMonthSheet("September", 9, 30, package);
-                await createMonthSheet("Oktober", 10, 31, package);
-                await createMonthSheet("November", 11, 30, package);
-                await createMonthSheet("December", 12, 31, package);
+                for (int i = 0; i < Months.GetLength(0); i++)
+                {
+                    try
+                    {
+                        await Task.Run(() => CreateMonthSheet(Months[i, 0], i + 1, Convert.ToInt16(Months[i, 1]), package));
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        FilePreview.Text = ResourceManager.GetString("FileInUse");
+                    }
+                    catch (Exception)
+                    {
+                        FilePreview.Text = ResourceManager.GetString("SomethingWrong");
+                    }
+                    progressBar1.Value =  100/12 * i;
+                }
 
                 await package.SaveAsync();
                 progressBar1.Value = 100;
 
                 if (Type.GetTypeFromProgID("Excel.Application", false) != null)
                 {
-                    System.Diagnostics.Process.Start(new ProcessStartInfo { FileName = fileName, UseShellExecute = true } );
+                    System.Diagnostics.Process.Start(new ProcessStartInfo { FileName = File.FullName, UseShellExecute = true });
                 }
-                progressBar1.Value = 0;
+              
                 progressBar1.Visible = false;
             }
-        }
+       }
 
-        private async Task createMonthSheet(string monthName, int monthNumber, int endDay, ExcelPackage package)
+        private void CreateMonthSheet(string monthName, int monthNumber, int endDay, ExcelPackage package)
         {
-            var workSheet = package.Workbook.Worksheets.Add(monthName);
+            try {
+                var workSheet = package.Workbook.Worksheets.Add(ResourceManager.GetString(monthName));
             
-            var monthData = data.Where(transactie => 
-                transactie.Boekingsdatum >= new DateTime(administrationYear, monthNumber, 01)
-                && transactie.Boekingsdatum < new DateTime(administrationYear, monthNumber, endDay))
-                .OrderBy(transactie => transactie.Boekingsdatum);
+                var monthData = Data.Where(transactie => 
+                    transactie.Boekingsdatum >= new DateTime(AdministrationYear, monthNumber, 01)
+                    && transactie.Boekingsdatum <= new DateTime(AdministrationYear, monthNumber, endDay))
+                    .OrderBy(transactie => transactie.Boekingsdatum);
 
-            int numberOfRows = 0;
+                int numberOfRows = 0;
 
-            for (int i = 0; i < monthData.Count(); i++)
-            {
-                switch (monthData.ElementAt(i).Categorie) {
-                    case "Boodschappen":
-                        workSheet.Cells["H" + (i + 12)].Value = monthData.ElementAt(i).Bedrag;
-                        break;
-                    case "Storting":
-                        workSheet.Cells["C" + (i + 12)].Value = monthData.ElementAt(i).Bedrag;
-                        break;
-                    case "Giften":
-                        workSheet.Cells["G" + (i + 12)].Value = monthData.ElementAt(i).Bedrag;
-                        break;
-                    case "Auto":
-                        workSheet.Cells["I" + (i + 12)].Value = monthData.ElementAt(i).Bedrag;
-                        break;
-                    case "Ziekte":
-                        workSheet.Cells["F" + (i + 12)].Value = monthData.ElementAt(i).Bedrag;
-                        break;
-                    case "Verzekeringen":
-                        workSheet.Cells["E" + (i + 12)].Value = monthData.ElementAt(i).Bedrag;
-                        break;
-                    case "Belastingvermindering":
-                        workSheet.Cells["L" + (i + 12)].Value = monthData.ElementAt(i).Bedrag;
-                        break;
-                    default:
-                        workSheet.Cells["K" + (i + 12)].Value = monthData.ElementAt(i).Bedrag;
-                        break;
+                for (int i = 0; i < monthData.Count(); i++)
+                {
+                    switch (monthData.ElementAt(i).Categorie) {
+                        case "Shoppings":
+                            workSheet.Cells["H" + (i + 12)].Value = monthData.ElementAt(i).Bedrag;
+                            break;
+                        case "Deposit":
+                            workSheet.Cells["C" + (i + 12)].Value = monthData.ElementAt(i).Bedrag;
+                            break;
+                        case "Donations":
+                            workSheet.Cells["G" + (i + 12)].Value = monthData.ElementAt(i).Bedrag;
+                            break;
+                        case "Car":
+                            workSheet.Cells["I" + (i + 12)].Value = monthData.ElementAt(i).Bedrag;
+                            break;
+                        case "Sickness":
+                            workSheet.Cells["F" + (i + 12)].Value = monthData.ElementAt(i).Bedrag;
+                            break;
+                        case "Insurance":
+                            workSheet.Cells["E" + (i + 12)].Value = monthData.ElementAt(i).Bedrag;
+                            break;
+                        case "TaxReduction":
+                            workSheet.Cells["L" + (i + 12)].Value = monthData.ElementAt(i).Bedrag;
+                            break;
+                        case "ToSavingsAccount":
+                            workSheet.Cells["B" + (i + 12)].Value = Math.Abs(monthData.ElementAt(i).Bedrag);
+                            workSheet.Cells["K" + (i + 12)].Value = monthData.ElementAt(i).Bedrag;
+                            break;
+                        default:
+                            workSheet.Cells["K" + (i + 12)].Value = monthData.ElementAt(i).Bedrag;
+                            break;
+                    }
+                    workSheet.Cells["M" + (i + 12)].Value = monthData.ElementAt(i).Tegenrekening;
+                    workSheet.Cells["N" + (i + 12)].Value = monthData.ElementAt(i).Omschrijving;
+                    workSheet.Cells["O" + (i + 12)].Value = monthData.ElementAt(i).Boekingsdatum;
+                    workSheet.Cells["P" + (i + 12)].Value = monthData.ElementAt(i).Detail;
+                    numberOfRows = (i + 12);
                 }
-                workSheet.Cells["M" + (i + 12)].Value = monthData.ElementAt(i).Tegenrekening;
-                workSheet.Cells["N" + (i + 12)].Value = monthData.ElementAt(i).Omschrijving;
-                workSheet.Cells["O" + (i + 12)].Value = monthData.ElementAt(i).Boekingsdatum;
-                workSheet.Cells["P" + (i + 12)].Value = monthData.ElementAt(i).Detail;
-                numberOfRows = (i + 12);
-            }
 
-            await applyTemplate(workSheet, numberOfRows, monthName);          
+                ApplyTemplate(workSheet, numberOfRows, monthNumber);
+            }
+            catch (MissingManifestResourceException)
+            {
+                FilePreview.Text = $"Months are not defined in resource for nl-BE";
+            }
+            catch (Exception)
+            {
+                FilePreview.Text = ResourceManager.GetString("SomethingWrong");
+            }
         }
 
-        private async Task applyTemplate(ExcelWorksheet workSheet, int numberOfRows, string monthName)
+        private void ApplyTemplate(ExcelWorksheet workSheet, int numberOfRows, int monthNumber)
         {
             workSheet.Column(15).Style.Numberformat.Format = "dd-MM-yyyy";
-            workSheet.Cells["A1"].Value = "Financiele Administratie " + administrationYear;
+            workSheet.Cells["A1"].Value = ResourceManager.GetString("FinAdmin") + " " + AdministrationYear;
             workSheet.Cells["A1:B1"].Merge = true;
             workSheet.Row(1).Style.Font.Size = 14;
 
-            workSheet.Cells["B9"].Value = "Inkomsten naar";
+            workSheet.Cells["B9"].Value = ResourceManager.GetString("IncomeTo");
             workSheet.Cells["B9:C9"].Merge = true;
             workSheet.Cells["B9:C9"].Style.Border.Bottom.Style = ExcelBorderStyle.Thin;
             workSheet.Cells["E9:P9"].Style.Border.Bottom.Style = ExcelBorderStyle.Thin;
@@ -148,63 +177,28 @@ namespace FinancialAdministrator
             workSheet.Cells["A11:P11"].Style.Border.Bottom.Style = ExcelBorderStyle.Thin;
             workSheet.Cells["A11:P11"].Style.Fill.SetBackground(Color.LightGray);
 
-            workSheet.Cells["D9"].Value = "Uitgaven van";
-            workSheet.Cells["E9"].Value = "Uitgaven van betaalrekening";
+            workSheet.Cells["D9"].Value = ResourceManager.GetString("ExpensesOf");
+            workSheet.Cells["E9"].Value = ResourceManager.GetString("CheckingAccountExpenses");
             workSheet.Cells["E9:L9"].Merge = true;
-            workSheet.Cells["A10"].Value = "Omschrijving";
-            workSheet.Cells["A11"].Value = "ING Lion Account Zichtrekening";
-            workSheet.Cells["B10"].Value = "spaarrek.";
-            workSheet.Cells["C10"].Value = "betaalrek.";
-            workSheet.Cells["D10"].Value = "spaarrekening";
-            workSheet.Cells["E10"].Value = "Verzekeringen";
-            workSheet.Cells["F10"].Value = "Ziekte";
-            workSheet.Cells["G10"].Value = "Giften";
-            workSheet.Cells["H10"].Value = "Boodschappen";
-            workSheet.Cells["I10"].Value = "Auto";
-            workSheet.Cells["J10"].Value = "Werk";
-            workSheet.Cells["K10"].Value = "Overig";
-            workSheet.Cells["L10"].Value = "Belastingvermindering";
-            workSheet.Cells["M10"].Value = "Tegenrekening";
-            workSheet.Cells["N10"].Value = "Omschrijving";
-            workSheet.Cells["O10"].Value = "Datum";
-            workSheet.Cells["P10"].Value = "Details";
+            workSheet.Cells["A10"].Value = ResourceManager.GetString("ManualDescription");
+            workSheet.Cells["A11"].Value = ResourceManager.GetString("MainAccount");
+            workSheet.Cells["B10"].Value = ResourceManager.GetString("SavingsAcc");
+            workSheet.Cells["C10"].Value = ResourceManager.GetString("CheckingAcc");
+            workSheet.Cells["D10"].Value = ResourceManager.GetString("SavingsAccount");
+            workSheet.Cells["E10"].Value = ResourceManager.GetString("Insurance");
+            workSheet.Cells["F10"].Value = ResourceManager.GetString("Sickness");
+            workSheet.Cells["G10"].Value = ResourceManager.GetString("Donations");
+            workSheet.Cells["H10"].Value = ResourceManager.GetString("Shoppings");
+            workSheet.Cells["I10"].Value = ResourceManager.GetString("Car");
+            workSheet.Cells["J10"].Value = ResourceManager.GetString("Work");
+            workSheet.Cells["K10"].Value = ResourceManager.GetString("Other");
+            workSheet.Cells["L10"].Value = ResourceManager.GetString("TaxReduction");
+            workSheet.Cells["M10"].Value = ResourceManager.GetString("OffsetAccount");
+            workSheet.Cells["N10"].Value = ResourceManager.GetString("Description");
+            workSheet.Cells["O10"].Value = ResourceManager.GetString("Date");
+            workSheet.Cells["P10"].Value = ResourceManager.GetString("Details");
             workSheet.Cells["A9:P10"].Style.Font.Bold = true;
 
-            numberOfRows++;
-            workSheet.Cells["A" + numberOfRows].Value = "ING BELGIË Groen Boekje";
-            workSheet.Cells["A" + numberOfRows].Style.Font.Bold = true;
-            workSheet.Cells["A" + numberOfRows + ":P" + numberOfRows].Style.Fill.SetBackground(Color.LightGray);
-            workSheet.Cells["A" + numberOfRows + ":P" + numberOfRows].Style.Border.Bottom.Style = ExcelBorderStyle.Thin;
-            workSheet.Cells["A" + numberOfRows + ":P" + numberOfRows].Style.Border.Top.Style = ExcelBorderStyle.Thin;
-            
-            numberOfRows++;
-            workSheet.Cells["A" + numberOfRows].Value = "rente";
-
-            numberOfRows++;
-            workSheet.Cells["A" + numberOfRows].Value = "ING BELGIË Lion Deposit";
-            workSheet.Cells["A" + numberOfRows].Style.Font.Bold = true;
-            workSheet.Cells["A" + numberOfRows + ":P" + numberOfRows].Style.Fill.SetBackground(Color.LightGray);
-            workSheet.Cells["A" + numberOfRows + ":P" + numberOfRows].Style.Border.Bottom.Style = ExcelBorderStyle.Thin;
-            workSheet.Cells["A" + numberOfRows + ":P" + numberOfRows].Style.Border.Top.Style = ExcelBorderStyle.Thin;
-
-            numberOfRows++;
-            workSheet.Cells["A" + numberOfRows].Value = "-";
-
-            numberOfRows++;
-            workSheet.Cells["A" + numberOfRows].Value = "ASN NEDERLAND";
-            workSheet.Cells["A" + numberOfRows].Style.Font.Bold = true;
-            workSheet.Cells["A" + numberOfRows + ":P" + numberOfRows].Style.Fill.SetBackground(Color.LightGray);
-            workSheet.Cells["A" + numberOfRows + ":P" + numberOfRows].Style.Border.Bottom.Style = ExcelBorderStyle.Thin;
-            workSheet.Cells["A" + numberOfRows + ":P" + numberOfRows].Style.Border.Top.Style = ExcelBorderStyle.Thin;
-
-            numberOfRows += 10;
-            workSheet.Cells["A" + numberOfRows].Value = "ING NEDERLAND";
-            workSheet.Cells["A" + numberOfRows].Style.Font.Bold = true;
-            workSheet.Cells["A" + numberOfRows + ":P" + numberOfRows].Style.Fill.SetBackground(Color.LightGray);
-            workSheet.Cells["A" + numberOfRows + ":P" + numberOfRows].Style.Border.Bottom.Style = ExcelBorderStyle.Thin;
-            workSheet.Cells["A" + numberOfRows + ":P" + numberOfRows].Style.Border.Top.Style = ExcelBorderStyle.Thin;
-
-            numberOfRows += 5;
             workSheet.Cells["A" + numberOfRows + ":P" + numberOfRows].Style.Border.Bottom.Style = ExcelBorderStyle.Double;
 
             workSheet.Cells["B9:B" + numberOfRows].Style.Border.Left.Style = ExcelBorderStyle.Thin;
@@ -212,7 +206,7 @@ namespace FinancialAdministrator
             workSheet.Cells["D9:D" + numberOfRows].Style.Border.Right.Style = ExcelBorderStyle.Thin;
 
             numberOfRows++;
-            workSheet.Cells["A" + numberOfRows].Value = "Subtotalen";
+            workSheet.Cells["A" + numberOfRows].Value = ResourceManager.GetString("Subtotals");
             workSheet.Cells["A" + numberOfRows].Style.Font.Bold = true;
 
             workSheet.Cells["B" + numberOfRows].Formula = "SUM(B12:B" + (numberOfRows - 1) + ")";
@@ -239,20 +233,20 @@ namespace FinancialAdministrator
             workSheet.Cells["L" + numberOfRows].Style.Font.Bold = true;
 
             numberOfRows += 2;
-            workSheet.Cells["A" + numberOfRows].Value = "Totalen inkomsten";
+            workSheet.Cells["A" + numberOfRows].Value = ResourceManager.GetString("TotalIncome");
             workSheet.Cells["A" + numberOfRows].Style.Font.Bold = true;
             workSheet.Cells["B" + numberOfRows].Formula = "B" + (numberOfRows - 2) + "+ C" + (numberOfRows - 2);
             workSheet.Cells["B" + numberOfRows].Style.Font.Bold = true;
 
             numberOfRows++;
-            workSheet.Cells["A" + numberOfRows].Value = "Totalen uitgaven";
+            workSheet.Cells["A" + numberOfRows].Value = ResourceManager.GetString("TotalExpenses");
             workSheet.Cells["A" + numberOfRows].Style.Font.Bold = true;
             workSheet.Cells["B" + numberOfRows].Formula = "SUM(D" + (numberOfRows - 3) + ":L" + (numberOfRows - 3) + ")";
             workSheet.Cells["B" + numberOfRows].Style.Font.Bold = true;
             workSheet.Cells["A" + numberOfRows + ":B" + numberOfRows].Style.Border.Bottom.Style = ExcelBorderStyle.Double;
 
             numberOfRows++;
-            workSheet.Cells["A" + numberOfRows].Value = "Maandoverzicht";
+            workSheet.Cells["A" + numberOfRows].Value = ResourceManager.GetString("MonthlyOverview");
             workSheet.Cells["A" + numberOfRows].Style.Font.Bold = true;
             workSheet.Cells["A" + numberOfRows].Style.Font.Color.SetColor(Color.Red);
             workSheet.Cells["B" + numberOfRows].Formula = "SUM(B" + (numberOfRows - 2) + ":B" + (numberOfRows - 1) + ")";
@@ -260,64 +254,74 @@ namespace FinancialAdministrator
             workSheet.Cells["B" + numberOfRows].Style.Font.Color.SetColor(Color.Red);
 
             numberOfRows += 3;
-            workSheet.Cells["A" + numberOfRows].Value = "Jaaroverzicht";
+            workSheet.Cells["A" + numberOfRows].Value = ResourceManager.GetString("YearlyOverview");
             workSheet.Cells["A" + numberOfRows].Style.Font.Bold = true;
             workSheet.Cells["A" + numberOfRows].Style.Font.Color.SetColor(Color.Red);
             workSheet.Cells["A" + numberOfRows + ":B" + numberOfRows].Style.Border.BorderAround(ExcelBorderStyle.Thick);
             workSheet.Cells["B" + numberOfRows].Style.Font.Bold = true;
             workSheet.Cells["B" + numberOfRows].Style.Font.Color.SetColor(Color.Red);
 
-            numberOfRowsList.Add(monthName, numberOfRows);
-
-            switch (monthName)
+            NumberOfRowsList.Add(monthNumber, numberOfRows);
+            
+            switch (monthNumber)
             {
-                case "Januari":
-                    workSheet.Cells["B" + numberOfRows].Formula = "B" + (numberOfRows - 3); 
+                case 1:
+                    workSheet.Cells["B" + numberOfRows].Formula = "B" + (numberOfRows - 3);
                     break;
-                case "Februari":
-                    workSheet.Cells["B" + numberOfRows].Formula = "Januari!B" + numberOfRowsList["Januari"] + "+B" + (numberOfRows - 3);
+                case 2:
+                    workSheet.Cells["B" + numberOfRows].Formula = ResourceManager.GetString("January") + "!B" + NumberOfRowsList[1] + "+B" + (numberOfRows - 3);
                     break;
-                case "Maart":
-                    workSheet.Cells["B" + numberOfRows].Formula = "Februari!B" + numberOfRowsList["Februari"] + "+B" + (numberOfRows - 3);
+                case 3:
+                    workSheet.Cells["B" + numberOfRows].Formula = ResourceManager.GetString("February") + "!B" + NumberOfRowsList[2] + "+B" + (numberOfRows - 3);
                     break;
-                case "April":
-                    workSheet.Cells["B" + numberOfRows].Formula = "Maart!B" + numberOfRowsList["Maart"] + "+B" + (numberOfRows - 3);
+                case 4:
+                    workSheet.Cells["B" + numberOfRows].Formula = ResourceManager.GetString("March") + "!B" + NumberOfRowsList[3] + "+B" + (numberOfRows - 3);
                     break;
-                case "Mei":
-                    workSheet.Cells["B" + numberOfRows].Formula = "April!B" + numberOfRowsList["April"] + "+B" + (numberOfRows - 3);
+                case 5:
+                    workSheet.Cells["B" + numberOfRows].Formula = ResourceManager.GetString("April") + "!B" + NumberOfRowsList[4] + "+B" + (numberOfRows - 3);
                     break;
-                case "Juni":
-                    workSheet.Cells["B" + numberOfRows].Formula = "Mei!B" + numberOfRowsList["Mei"] + "+B" + (numberOfRows - 3);
+                case 6:
+                    workSheet.Cells["B" + numberOfRows].Formula = ResourceManager.GetString("May") + "!B" + NumberOfRowsList[5] + "+B" + (numberOfRows - 3);
                     break;
-                case "Juli":
-                    workSheet.Cells["B" + numberOfRows].Formula = "Juni!B" + numberOfRowsList["Juni"] + "+B" + (numberOfRows - 3); 
+                case 7:
+                    workSheet.Cells["B" + numberOfRows].Formula = ResourceManager.GetString("June") + "!B" + NumberOfRowsList[6] + "+B" + (numberOfRows - 3);
                     break;
-                case "Augustus":
-                    workSheet.Cells["B" + numberOfRows].Formula = "Juli!B" + numberOfRowsList["Juli"] + "+B" + (numberOfRows - 3);
+                case 8:
+                    workSheet.Cells["B" + numberOfRows].Formula = ResourceManager.GetString("July") + "!B" + NumberOfRowsList[7] + "+B" + (numberOfRows - 3);
                     break;
-                case "September":
-                    workSheet.Cells["B" + numberOfRows].Formula = "Augustus!B" + numberOfRowsList["Augustus"] + "+B" + (numberOfRows - 3);
+                case 9:
+                    workSheet.Cells["B" + numberOfRows].Formula = ResourceManager.GetString("August") + "!B" + NumberOfRowsList[8] + "+B" + (numberOfRows - 3);
                     break;
-                case "Oktober":
-                    workSheet.Cells["B" + numberOfRows].Formula = "September!B" + numberOfRowsList["September"] + "+B" + (numberOfRows - 3);
+                case 10:
+                    workSheet.Cells["B" + numberOfRows].Formula = ResourceManager.GetString("September") + "!B" + NumberOfRowsList[9] + "+B" + (numberOfRows - 3);
                     break;
-                case "November":
-                    workSheet.Cells["B" + numberOfRows].Formula = "Oktober!B" + numberOfRowsList["Oktober"] + "+B" + (numberOfRows - 3);
+                case 11:
+                    workSheet.Cells["B" + numberOfRows].Formula = ResourceManager.GetString("October") + "!B" + NumberOfRowsList[10] + "+B" + (numberOfRows - 3);
                     break;
-                case "December":
-                    workSheet.Cells["B" + numberOfRows].Formula = "November!B" + numberOfRowsList["November"] + "+B" + (numberOfRows - 3);
+                case 12:
+                    workSheet.Cells["B" + numberOfRows].Formula = ResourceManager.GetString("November") + "!B" + NumberOfRowsList[11] + "+B" + (numberOfRows - 3);
                     break;
             }
 
             var range = workSheet.Cells["A9:P22"];
             range.AutoFitColumns();
         }
-
-        private void deleteIfExists(string fileName)
+        public void DeleteIfExists()
         {
-            if (File.Exists(fileName))
+            try
             {
-                File.Delete(fileName);
+                if (System.IO.File.Exists(File.FullName))
+                {
+                    System.IO.File.Delete(File.FullName);
+                }
+            }
+            catch (IOException)
+            {
+                FilePreview.Text = ResourceManager.GetString("OpenErrorPart1") + File.FullName + ResourceManager.GetString("OpenErrorPart2");
+            }
+            catch (Exception)
+            {
+                FilePreview.Text = ResourceManager.GetString("SomethingWrong");
             }
         }
     }
