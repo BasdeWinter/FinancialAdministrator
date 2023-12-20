@@ -24,10 +24,10 @@ namespace FinancialAdministrator
         readonly ProgressBar progressBar1;
 
         readonly RichTextBox FilePreview;
+
         ResourceManager ResourceManager { get; set; }
 
         readonly string[,]? Months;
-        
 
         public ExcelWriter(FileInfo file, List<TransactieModel> result, int administrationYear, ProgressBar progressBar1, RichTextBox filePreview)
         {
@@ -84,7 +84,7 @@ namespace FinancialAdministrator
                     {
                         FilePreview.Text = ResourceManager.GetString("SomethingWrong");
                     }
-                    progressBar1.Value =  100/12 * i;
+                    progressBar1.Value =  100/13 * i;
                 }
 
                 await package.SaveAsync();
@@ -97,7 +97,7 @@ namespace FinancialAdministrator
               
                 progressBar1.Visible = false;
             }
-       }
+        }
 
         private void CreateMonthSheet(string monthName, int monthNumber, int endDay, ExcelPackage package)
         {
@@ -154,7 +154,7 @@ namespace FinancialAdministrator
             }
             catch (MissingManifestResourceException)
             {
-                FilePreview.Text = $"Months are not defined in resource for nl-BE";
+                FilePreview.Text = "Months are not defined in resource for nl-BE";
             }
             catch (Exception)
             {
@@ -306,7 +306,8 @@ namespace FinancialAdministrator
             var range = workSheet.Cells["A9:P22"];
             range.AutoFitColumns();
         }
-        public void DeleteIfExists()
+
+        private void DeleteIfExists()
         {
             try
             {

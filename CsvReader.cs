@@ -14,6 +14,5 @@ namespace FinancialAdministrator
             }
             return result;
         }
-
     }
 }

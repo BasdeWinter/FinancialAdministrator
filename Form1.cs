@@ -17,6 +17,7 @@ namespace FinancialAdministrator
         int AdministrationYear { get; set; }
 
         ResourceManager ResourceManager { get; set; }
+
         public FinancialAdministrator()
         {
             InitializeComponent();
@@ -123,7 +124,6 @@ namespace FinancialAdministrator
                     filePreview.Text = ResourceManager.GetString("SomethingWrong");
                 }
             }
-            
         }
     }
 }

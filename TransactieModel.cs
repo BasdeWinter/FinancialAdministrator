@@ -5,10 +5,15 @@ namespace FinancialAdministrator
     public class TransactieModel
     {
         public DateTime Boekingsdatum { get; set; }
+
         public double Bedrag { get; set; }
+
         public string Tegenrekening { get; set; }
+
         public string Omschrijving { get; set; }
+
         public string Detail { get; set; }
+
         public string Categorie { get; set; }
 
         public string[] boodschappen = { "jumbo", "carrefour", "colruyt", "aldi", "albert heijn", "delhaize", "co&go" };
